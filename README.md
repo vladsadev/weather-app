@@ -26,8 +26,23 @@ https://api.open-meteo.com/v1/forecast?latitude=45.41117&longitude=-75.69812&cur
 ## Inicializar proyecto
 
 ```bash
-bun init
+bun install
 ```
+
+## Ejecutar
+
+```bash
+bun start
+```
+
+Para generar un binario ejecutable:
+
+```bash
+bun run build
+./dist/weather
+```
+
+La configuración (ciudades, ciudad default y unidad) se guarda en `~/.config/weather-cli/config.json`.
 
 ### Ejemplo del menú
 Esta es la apariencia que deseamos crear
