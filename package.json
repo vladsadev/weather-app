@@ -6,6 +6,7 @@
   "scripts": {
     "start": "bun index.ts",
     "typecheck": "bun check",
+    "test": "bun test",
     "build": "bun build --compile index.ts --outfile dist/weather"
   },
   "devDependencies": {
