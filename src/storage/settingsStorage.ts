@@ -1,23 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-
-export type Unit = "celsius" | "fahrenheit";
-
-export interface City {
-  id: number;
-  name: string;
-  latitude: number;
-  longitude: number;
-  admin1?: string;
-  country?: string;
-}
-
-export interface AppState {
-  unit: Unit;
-  defaultCityId: number | null;
-  cities: City[];
-}
+import type { AppState, Unit } from "../types/AppState";
+import type { City } from "../types/City";
 
 export function createDefaultState(): AppState {
   return {

@@ -1,27 +1,24 @@
-import type { City, Unit } from "./config";
+import { stdout } from "node:process";
+import type { AppState } from "../types/AppState";
+import type { City } from "../types/City";
+import type { CurrentWeather, DailyForecast, Forecast } from "../types/Weather";
+import { boldCyan, cyan, dim, green, paint, red, yellow } from "../utils/colors";
+import { SPINNER_FRAMES, SPINNER_INTERVAL_MS } from "../utils/constants";
 import {
   formatCityLabel,
+  formatDayLabel,
   formatTemperature,
-  type CurrentWeather,
-  type DailyForecast,
-  type Forecast,
-} from "./openMeteo";
-import {
-  boldCyan,
-  cyan,
-  dim,
-  paint,
   padEnd,
   padStart,
   truncate,
+  unitSymbol,
   visualWidth,
-  yellow,
-} from "./ui";
+} from "../utils/format";
 import {
   describeWeather,
   type WeatherGroup,
   type WeatherInfo,
-} from "./weatherCodes";
+} from "../utils/weatherCodes";
 
 const DAY_WIDTH = 12;
 const CONDITION_WIDTH = 23;
@@ -42,51 +39,43 @@ const GROUP_COLORS: Record<WeatherGroup, string> = {
   thunder: "35",
 };
 
-const WEEKDAY_FORMAT = new Intl.DateTimeFormat("es", { weekday: "short" });
-const MONTH_FORMAT = new Intl.DateTimeFormat("es", { month: "short" });
-
-export function unitSymbol(unit: Unit): string {
-  return unit === "celsius" ? "°C" : "°F";
+export function success(message: string): void {
+  console.log(`  ${green("✓")} ${green(message)}`);
 }
 
-function toCelsius(value: number, unit: Unit): number {
+export function note(message: string): void {
+  console.log(`  ${cyan("•")} ${message}`);
+}
+
+export function warning(message: string): void {
+  console.log(`  ${yellow("!")} ${yellow(message)}`);
+}
+
+export function printError(context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+
+  console.error(`\n  ${red("✖")} ${red(`${context}: ${message}`)}`);
+}
+
+export function printLines(lines: string[]): void {
+  lines.forEach((line) => console.log(line));
+}
+
+export function printCityList(state: AppState, title: string): void {
+  console.log(`\n  ${cyan(title)}`);
+
+  state.cities.forEach((city, index) => {
+    const marker =
+      city.id === state.defaultCityId ? ` ${yellow("(default)")}` : "";
+
+    console.log(
+      `    ${cyan(`${index + 1})`)} ${formatCityLabel(city)}${marker}`,
+    );
+  });
+}
+
+function toCelsius(value: number, unit: "celsius" | "fahrenheit"): number {
   return unit === "fahrenheit" ? ((value - 32) * 5) / 9 : value;
-}
-
-function capitalize(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function parseDate(date: string): Date | null {
-  const [year, month, day] = date.split("-").map(Number);
-
-  if (year === undefined || month === undefined || day === undefined) {
-    return null;
-  }
-
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day)
-  ) {
-    return null;
-  }
-
-  return new Date(year, month - 1, day);
-}
-
-export function formatDayLabel(date: string, index: number): string {
-  const parsed = parseDate(date);
-  if (!parsed) return date;
-
-  const weekday = WEEKDAY_FORMAT.format(parsed).replace(/\.$/, "");
-  const month = MONTH_FORMAT.format(parsed).replace(/\.$/, "");
-  const day = parsed.getDate();
-
-  if (index === 0) return `Hoy ${weekday} ${day}`;
-  if (index === 1) return `Mañana ${weekday} ${day}`;
-
-  return `${capitalize(weekday)} ${day} ${month}`;
 }
 
 function weatherIcon(info: WeatherInfo): string {
@@ -194,7 +183,7 @@ function renderDayRow(
   index: number,
   weekMinimum: number,
   weekMaximum: number,
-  unit: Unit,
+  unit: "celsius" | "fahrenheit",
   windUnit: string,
 ): string {
   const info = describeWeather(day.weatherCode);
@@ -242,7 +231,7 @@ function renderDayRow(
 export function renderForecast(
   city: City,
   forecast: Forecast,
-  unit: Unit,
+  unit: "celsius" | "fahrenheit",
 ): string[] {
   const { daily } = forecast;
 
@@ -283,4 +272,33 @@ export function renderForecast(
   ];
 
   return lines;
+}
+
+/**
+ * Muestra un indicador de carga mientras corre la tarea y lo borra al terminar.
+ * Sin terminal interactiva no imprime nada: el texto no se mezcla con la salida.
+ */
+export async function withSpinner<T>(
+  message: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  if (stdout.isTTY !== true) return task();
+
+  let frame = 0;
+
+  const render = (): void => {
+    const symbol = SPINNER_FRAMES[frame % SPINNER_FRAMES.length] ?? "·";
+    frame += 1;
+    stdout.write(`\r\x1b[2K  ${cyan(symbol)} ${dim(message)}`);
+  };
+
+  render();
+  const timer = setInterval(render, SPINNER_INTERVAL_MS);
+
+  try {
+    return await task();
+  } finally {
+    clearInterval(timer);
+    stdout.write("\r\x1b[2K");
+  }
 }

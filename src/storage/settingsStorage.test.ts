@@ -7,7 +7,7 @@ import {
   getConfigPath,
   loadState,
   saveState,
-} from "./config";
+} from "./settingsStorage";
 
 const originalHome = process.env.WEATHER_CLI_HOME;
 let home = "";
@@ -32,7 +32,7 @@ async function writeConfig(value: unknown): Promise<void> {
   await Bun.write(getConfigPath(), JSON.stringify(value));
 }
 
-describe("config", () => {
+describe("settingsStorage", () => {
   test("respeta WEATHER_CLI_HOME", () => {
     expect(getConfigPath()).toBe(join(home, "config.json"));
   });

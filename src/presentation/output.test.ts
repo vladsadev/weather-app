@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { City } from "./config";
-import type { Forecast } from "./openMeteo";
-import { formatDayLabel, renderForecast, unitSymbol } from "./render";
-import { visualWidth } from "./ui";
+import type { City } from "../types/City";
+import type { Forecast } from "../types/Weather";
+import { visualWidth } from "../utils/format";
+import { renderForecast } from "./output";
 
 const city: City = {
   id: 1,
@@ -87,22 +87,6 @@ const forecast: Forecast = {
   precipitationUnit: "%",
 };
 
-describe("formatDayLabel", () => {
-  test("etiqueta hoy y mañana", () => {
-    expect(formatDayLabel("2026-10-31", 0)).toBe("Hoy sáb 31");
-    expect(formatDayLabel("2026-11-01", 1)).toBe("Mañana dom 1");
-  });
-
-  test("usa día y mes para el resto de la semana", () => {
-    expect(formatDayLabel("2026-11-02", 2)).toBe("Lun 2 nov");
-    expect(formatDayLabel("2026-11-06", 6)).toBe("Vie 6 nov");
-  });
-
-  test("no falla con una fecha inválida", () => {
-    expect(formatDayLabel("sin-fecha", 3)).toBe("sin-fecha");
-  });
-});
-
 describe("renderForecast", () => {
   test("la tabla no supera el ancho de una terminal de 80 columnas", () => {
     const lines = renderForecast(city, forecast, "celsius");
@@ -136,11 +120,6 @@ describe("renderForecast", () => {
     expect(text).toContain("Tormenta");
     expect(text).toContain("100%");
     expect(text).toContain("Mañana dom 1");
-  });
-
-  test("usa el símbolo de la unidad elegida", () => {
-    expect(unitSymbol("celsius")).toBe("°C");
-    expect(unitSymbol("fahrenheit")).toBe("°F");
   });
 
   test("no genera nada sin días", () => {
