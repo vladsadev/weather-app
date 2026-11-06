@@ -12,17 +12,9 @@ import {
   cityFromResult,
   findCity,
 } from "../storage/citiesStorage";
-import { saveState } from "../storage/settingsStorage";
+import { persistState } from "./persistState";
 import { cyan } from "../utils/colors";
 import { formatCityLabel } from "../utils/format";
-
-async function persist(state: AppState): Promise<void> {
-  try {
-    await saveState(state);
-  } catch (error) {
-    printError("No se pudo guardar la configuración", error);
-  }
-}
 
 export async function addCity(state: AppState, rl: Cli): Promise<void> {
   const query = await ask(rl, "\n  Nombre de la ciudad: ");
@@ -66,8 +58,7 @@ export async function addCity(state: AppState, rl: Cli): Promise<void> {
     warning(`"${formatCityLabel(existing)}" ya está guardada.`);
 
     if (state.defaultCityId === null) {
-      state.defaultCityId = existing.id;
-      await persist(state);
+      if (!(await persistState(state, { ...state, defaultCityId: existing.id }))) return;
       success("Establecida como ciudad default.");
     }
 
@@ -75,9 +66,10 @@ export async function addCity(state: AppState, rl: Cli): Promise<void> {
   }
 
   const city = cityFromResult(selected);
-  const becameDefault = appendCity(state, city);
+  const next = { ...state, cities: [...state.cities] };
+  const becameDefault = appendCity(next, city);
 
-  await persist(state);
+  if (!(await persistState(state, next))) return;
   success(`Ciudad agregada: ${formatCityLabel(city)}`);
 
   if (becameDefault) {

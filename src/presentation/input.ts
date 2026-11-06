@@ -11,10 +11,16 @@ export function createCli(): Cli {
 }
 
 export async function ask(rl: Cli, question: string): Promise<string | null> {
+  const controller = new AbortController();
+  const onClose = () => controller.abort();
+  rl.once("close", onClose);
+
   try {
-    return (await rl.question(question)).trim();
+    return (await rl.question(question, { signal: controller.signal })).trim();
   } catch {
     return null;
+  } finally {
+    rl.off("close", onClose);
   }
 }
 

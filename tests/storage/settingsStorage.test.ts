@@ -7,7 +7,7 @@ import {
   getConfigPath,
   loadState,
   saveState,
-} from "./settingsStorage";
+} from "../../src/storage/settingsStorage";
 
 const originalHome = process.env.WEATHER_CLI_HOME;
 let home = "";
@@ -35,6 +35,19 @@ async function writeConfig(value: unknown): Promise<void> {
 describe("settingsStorage", () => {
   test("respeta WEATHER_CLI_HOME", () => {
     expect(getConfigPath()).toBe(join(home, "config.json"));
+  });
+
+  test("usa XDG_CONFIG_HOME cuando no hay WEATHER_CLI_HOME", () => {
+    const originalXdg = process.env.XDG_CONFIG_HOME;
+    delete process.env.WEATHER_CLI_HOME;
+    process.env.XDG_CONFIG_HOME = home;
+    try {
+      expect(getConfigPath()).toBe(join(home, "weather-cli", "config.json"));
+    } finally {
+      process.env.WEATHER_CLI_HOME = home;
+      if (originalXdg === undefined) delete process.env.XDG_CONFIG_HOME;
+      else process.env.XDG_CONFIG_HOME = originalXdg;
+    }
   });
 
   test("devuelve la configuración por defecto si no hay archivo", async () => {

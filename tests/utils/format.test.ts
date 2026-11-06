@@ -6,8 +6,8 @@ import {
   truncate,
   unitSymbol,
   visualWidth,
-} from "./format";
-import { paint } from "./colors";
+} from "../../src/utils/format";
+import { paint } from "../../src/utils/colors";
 
 describe("format", () => {
   test("mide texto plano", () => {

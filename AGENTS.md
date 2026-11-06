@@ -2,7 +2,7 @@
 
 - This is a Bun/TypeScript ESM project. Use Bun and keep `bun.lock` in sync when changing dependencies. See `@bun-instructions.md` for Bun-specific APIs.
 - `src/index.ts` es el punto de entrada; ejecuta el CLI con `bun src/index.ts` o `bun start`. Genera un binario con `bun run build` (salida `dist/weather`).
-- Verifica tipos con `bun run typecheck` (ejecuta `bun check`) y corre la suite con `bun test` (archivos en `src/**/*.test.ts`).
+- Verifica tipos con `bun run typecheck` (ejecuta `bun check`) y corre la suite con `bun test` (archivos en `tests/**/*.test.ts`, replicando la estructura de `src/`). Usa `bun run test:coverage` para cobertura; `tests/helpers/` contiene utilidades y `tests/e2e/` las pruebas del CLI como proceso real.
 - Organización del código:
   - `src/actions/`: acciones del menú (clima, pronóstico, alta, eliminación, ciudad default, ajustes y listado).
   - `src/presentation/`: menú, entrada de usuario y salida por consola (mensajes, spinner y renderizado).

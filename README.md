@@ -42,7 +42,31 @@ bun start
 ```bash
 bun test
 bun run typecheck
+bun run test:coverage
 ```
+
+Los tests viven en `tests/` y replican la estructura de `src/`: `actions/`,
+`api/`, `presentation/`, `storage/` y `utils/`. Conserva el nombre del módulo
+con el sufijo `.test.ts`, por ejemplo `tests/storage/citiesStorage.test.ts`.
+Las utilidades compartidas están en `tests/helpers/` y las pruebas del CLI
+como proceso real en `tests/e2e/`.
+
+Las pruebas HTTP usan respuestas simuladas y las de persistencia y del CLI
+usan directorios temporales; la suite no necesita internet ni modifica la
+configuración personal. Los tests de acciones comprueban la lógica real y
+el guardado, simulando únicamente las respuestas a las preguntas y la API.
+
+Para ejecutar solo un área, usa `bun test tests/storage` o
+`bun test tests/e2e`. `bun run test:coverage` muestra el informe y genera
+`coverage/lcov.info`. El informe mide los módulos cargados por el proceso
+de tests: no incorpora la ejecución de los subprocesos de las pruebas E2E,
+incluido el arranque de `src/index.ts`, y no debe interpretarse como una
+medición completa de toda la aplicación.
+
+GitHub Actions ejecuta la instalación con `bun.lock` congelado, la comprobación
+de tipos y la suite con cobertura en cada push y pull request, usando Bun 1.4.3.
+Al actualizar esa versión, verifica también el workflow en
+`.github/workflows/tests.yml`.
 
 Para generar un binario ejecutable:
 

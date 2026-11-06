@@ -1,18 +1,10 @@
 import type { AppState } from "../types/AppState";
 import { selectCity, type Cli } from "../presentation/input";
-import { printError, success, warning } from "../presentation/output";
+import { success, warning } from "../presentation/output";
 import { assignDefaultCity } from "../storage/citiesStorage";
-import { saveState } from "../storage/settingsStorage";
+import { persistState } from "./persistState";
 import { formatCityLabel } from "../utils/format";
 import { listCities } from "./listCities";
-
-async function persist(state: AppState): Promise<void> {
-  try {
-    await saveState(state);
-  } catch (error) {
-    printError("No se pudo guardar la configuración", error);
-  }
-}
 
 export async function setDefaultCity(
   state: AppState,
@@ -33,7 +25,8 @@ export async function setDefaultCity(
 
   if (!city) return;
 
-  assignDefaultCity(state, city);
-  await persist(state);
+  const next = { ...state };
+  assignDefaultCity(next, city);
+  if (!(await persistState(state, next))) return;
   success(`Ciudad default: ${formatCityLabel(city)}`);
 }

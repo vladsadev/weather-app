@@ -1,17 +1,9 @@
 import type { AppState, Unit } from "../types/AppState";
 import { ask, type Cli } from "../presentation/input";
 import { printSettingsMenu } from "../presentation/menu";
-import { printError, success, warning } from "../presentation/output";
-import { saveState } from "../storage/settingsStorage";
+import { success, warning } from "../presentation/output";
+import { persistState } from "./persistState";
 import { unitSymbol } from "../utils/format";
-
-async function persist(state: AppState): Promise<void> {
-  try {
-    await saveState(state);
-  } catch (error) {
-    printError("No se pudo guardar la configuración", error);
-  }
-}
 
 export async function changeSettings(
   state: AppState,
@@ -31,8 +23,7 @@ export async function changeSettings(
     const unit: Unit = option === "1" ? "celsius" : "fahrenheit";
 
     if (state.unit !== unit) {
-      state.unit = unit;
-      await persist(state);
+      if (!(await persistState(state, { ...state, unit }))) continue;
     }
 
     success(`Unidad establecida: ${unitSymbol(unit)}`);

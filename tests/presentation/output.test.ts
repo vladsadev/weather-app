@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { City } from "../types/City";
-import type { Forecast } from "../types/Weather";
-import { visualWidth } from "../utils/format";
-import { renderForecast } from "./output";
+import type { City } from "../../src/types/City";
+import type { Forecast } from "../../src/types/Weather";
+import { visualWidth } from "../../src/utils/format";
+import { renderForecast } from "../../src/presentation/output";
 
 const city: City = {
   id: 1,
@@ -98,10 +98,10 @@ describe("renderForecast", () => {
 
   test("mantiene alineadas las filas y las reglas", () => {
     const lines = renderForecast(city, forecast, "celsius");
-    const rows = lines.filter((line) => line.includes("Hoy"));
+    const rows = lines.filter((line) => line.includes("█"));
     const rules = lines.filter((line) => line.includes("─"));
 
-    expect(rows).toHaveLength(1);
+    expect(rows).toHaveLength(7);
     expect(rules).toHaveLength(3);
 
     const ruleWidth = visualWidth(rules[0] ?? "");
@@ -109,6 +109,12 @@ describe("renderForecast", () => {
 
     expect(header).toBeDefined();
     expect(visualWidth(header ?? "")).toBe(ruleWidth);
+    for (const row of rows) {
+      expect(visualWidth(row)).toBe(ruleWidth);
+    }
+    for (const rule of rules) {
+      expect(visualWidth(rule)).toBe(ruleWidth);
+    }
   });
 
   test("incluye las condiciones actuales y los siete días", () => {

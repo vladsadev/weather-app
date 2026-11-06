@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import type { City } from "../types/City";
-import { fetchCurrentWeather, fetchForecast } from "./weather";
+import type { City } from "../../src/types/City";
+import { fetchCurrentWeather, fetchForecast } from "../../src/api/weather";
 
 const originalFetch = globalThis.fetch;
 

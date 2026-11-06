@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { searchCities } from "./geocoding";
+import { searchCities } from "../../src/api/geocoding";
 
 const originalFetch = globalThis.fetch;
 
