@@ -64,9 +64,8 @@ incluido el arranque de `src/index.ts`, y no debe interpretarse como una
 medición completa de toda la aplicación.
 
 GitHub Actions ejecuta la instalación con `bun.lock` congelado, la comprobación
-de tipos y la suite con cobertura en cada push y pull request, usando Bun 1.4.3.
-Al actualizar esa versión, verifica también el workflow en
-`.github/workflows/tests.yml`.
+de tipos y la suite con cobertura en cada push y pull request. La versión de Bun
+se toma de `.bun-version` en ambos workflows; actualízala ahí cuando corresponda.
 
 Para generar un binario ejecutable:
 
@@ -76,6 +75,15 @@ bun run build
 ```
 
 La configuración (ciudades, ciudad default y unidad) se guarda en `~/.config/weather-cli/config.json`.
+
+## Releases
+
+El workflow `.github/workflows/release.yml` se ejecuta en cada push a `main` y lee la versión de `package.json`. Para publicar una nueva versión:
+
+1. Actualiza `version` en `package.json`.
+2. Haz push a `main`.
+
+El workflow ejecuta los tipos y los tests, compila binarios para Linux x64/arm64, macOS x64/arm64 y Windows x64, genera un archivo de checksums SHA-256, crea el tag `v<version>` y publica el release con notas generadas automáticamente. Si el release ya está publicado no hace nada; si quedó un borrador por un fallo anterior, lo reanuda. Los binarios de macOS no están firmados ni notarizados, así que Gatekeeper puede mostrar una advertencia.
 
 ### Colores
 

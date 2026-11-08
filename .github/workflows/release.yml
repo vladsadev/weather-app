@@ -1,0 +1,229 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      skip: ${{ steps.release.outputs.skip }}
+      tag_exists: ${{ steps.source.outputs.tag_exists }}
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      - name: Read package version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION=$(bun -e 'const pkg = await Bun.file("package.json").json(); if (typeof pkg.version !== "string" || !pkg.version.trim()) throw new Error("package.json must define a version"); console.log(pkg.version.trim());')
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
+            echo "Versión inválida en package.json: $VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check release state
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          if DRAFT=$(gh release view "$TAG" --json isDraft --jq '.isDraft' 2>/dev/null); then
+            if [ "$DRAFT" = "false" ]; then
+              ASSETS=$(gh release view "$TAG" --json assets --jq '.assets[].name')
+              for asset in \
+                "weather-v${VERSION}-linux-x64" \
+                "weather-v${VERSION}-linux-arm64" \
+                "weather-v${VERSION}-macos-x64" \
+                "weather-v${VERSION}-macos-arm64" \
+                "weather-v${VERSION}-windows-x64.exe" \
+                "weather-v${VERSION}-SHA256SUMS.txt"; do
+                if ! printf '%s\n' "$ASSETS" | grep -Fxq "$asset"; then
+                  echo "El release publicado $TAG no contiene el asset $asset." >&2
+                  exit 1
+                fi
+              done
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "El release $TAG ya está publicado y completo; no hay nada que hacer."
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+              echo "El release $TAG es un borrador; se reanudará."
+            fi
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "No existe un release para $TAG."
+          fi
+
+      - name: Select release source
+        id: source
+        if: steps.release.outputs.skip != 'true'
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            git checkout --force "refs/tags/$TAG"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            echo "Se reutiliza el tag $TAG en $(git rev-parse --short HEAD)."
+          else
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+            echo "El tag $TAG no existe; se usará $GITHUB_SHA."
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.release.outputs.skip != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        if: steps.release.outputs.skip != 'true'
+        run: bun run typecheck
+
+      - name: Test
+        if: steps.release.outputs.skip != 'true'
+        run: bun test
+
+      - name: Build release binaries
+        if: steps.release.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          rm -rf release
+          mkdir -p release
+          build() {
+            local target="$1"
+            local name="$2"
+            echo "::group::Compilar $name"
+            BUILD_TARGET="$target" BUILD_OUTFILE="release/$name" bun run build
+            echo "::endgroup::"
+          }
+          build bun-linux-x64 "weather-v${VERSION}-linux-x64"
+          build bun-linux-arm64 "weather-v${VERSION}-linux-arm64"
+          build bun-darwin-x64 "weather-v${VERSION}-macos-x64"
+          build bun-darwin-arm64 "weather-v${VERSION}-macos-arm64"
+          build bun-windows-x64 "weather-v${VERSION}-windows-x64.exe"
+
+      - name: Smoke test version
+        if: steps.release.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          OUTPUT=$(./release/weather-v${VERSION}-linux-x64 --version)
+          test "$OUTPUT" = "Weather CLI ${VERSION}"
+          echo "$OUTPUT"
+
+      - name: Generate checksums
+        if: steps.release.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum weather-* > "weather-v${VERSION}-SHA256SUMS.txt"
+          sha256sum -c "weather-v${VERSION}-SHA256SUMS.txt"
+          ls -lh
+
+      - name: Upload build artifacts
+        if: steps.release.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-release-assets
+          path: release/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: needs.build.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.build.outputs.tag }}
+      VERSION: ${{ needs.build.outputs.version }}
+      SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: weather-release-assets
+          path: release
+
+      - name: Restore executable permissions
+        run: |
+          set -euo pipefail
+          chmod +x release/weather-*-linux-* release/weather-*-macos-*
+
+      - name: Verify checksums
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum -c "weather-v${VERSION}-SHA256SUMS.txt"
+
+      - name: Create tag
+        if: needs.build.outputs.tag_exists != 'true'
+        run: |
+          set -euo pipefail
+          git tag "$TAG" "$SOURCE_SHA"
+          git push origin "$TAG"
+
+      - name: Create draft release
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "El borrador $TAG ya existe; se reanudará."
+          else
+            gh release create "$TAG" \
+              --draft \
+              --verify-tag \
+              --title "Weather CLI $TAG" \
+              --generate-notes \
+              --notes "> Los binarios de macOS no están firmados ni notarizados. Gatekeeper puede mostrar una advertencia."
+          fi
+
+      - name: Upload release assets
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" release/* --clobber
+
+      - name: Publish release
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false --title "Weather CLI $TAG"
+          gh release view "$TAG" --json url,assets --jq '{url, assets: [.assets[].name]}'

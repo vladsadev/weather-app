@@ -8,6 +8,7 @@ import { getForecast } from "./actions/getForecast";
 import { getAllWeather, getDefaultWeather } from "./actions/getWeather";
 import { removeCity } from "./actions/removeCity";
 import { setDefaultCity } from "./actions/setDefaultCity";
+import { APP_VERSION } from "./version";
 
 export async function runCli(): Promise<void> {
   const state = await loadState();
@@ -65,9 +66,13 @@ export async function runCli(): Promise<void> {
 }
 
 if (import.meta.main) {
-  runCli().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`\n  Error inesperado: ${message}`);
-    process.exitCode = 1;
-  });
+  if (process.argv.includes("--version") || process.argv.includes("-v")) {
+    console.log(`Weather CLI ${APP_VERSION}`);
+  } else {
+    runCli().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`\n  Error inesperado: ${message}`);
+      process.exitCode = 1;
+    });
+  }
 }

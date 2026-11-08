@@ -108,4 +108,18 @@ describe("CLI como proceso real", () => {
     expect(result.errors).toBe("");
     expect(result.output).toContain("¡Hasta luego!");
   });
+
+  test("reporta la versión sin iniciar el menú", async () => {
+    const child = Bun.spawn([process.execPath, "src/index.ts", "--version"], {
+      cwd: projectRoot,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const output = await new Response(child.stdout).text();
+    const errors = await new Response(child.stderr).text();
+
+    expect(await child.exited).toBe(0);
+    expect(errors).toBe("");
+    expect(output.trim()).toMatch(/^Weather CLI \S+$/);
+  });
 });

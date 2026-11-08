@@ -1,5 +1,6 @@
 {
   "name": "02-weather-v2",
+  "version": "1.0.0",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -8,7 +9,7 @@
     "typecheck": "bun check",
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
-    "build": "bun build --compile src/index.ts --outfile dist/weather"
+    "build": "bun scripts/build.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
